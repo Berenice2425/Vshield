@@ -1,0 +1,6 @@
+{
+  "name": "VShield",
+  "description": "An AI-powered biometric vehicle immobilization system designed to combat Nigeria's escalating car theft crisis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
