@@ -43,6 +43,7 @@ export default function Login() {
           <Shield className="w-10 h-10 text-emerald-600" />
           <span className="text-3xl font-bold tracking-tight text-emerald-900">VShield</span>
         </Link>
+        <p className="mt-3 text-center text-sm font-medium text-emerald-700">Securing Nigeria, One Vehicle at a Time!</p>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
           Sign in to your account
         </h2>

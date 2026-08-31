@@ -26,7 +26,7 @@ export default function LandingPage() {
       <main>
         <section className="px-8 py-24 md:py-32 max-w-7xl mx-auto text-center">
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-gray-900 mb-6 max-w-4xl mx-auto">
-            Securing Nigeria, <br/><span className="text-emerald-600">one vehicle at a time.</span>
+            Securing Nigeria, <br/><span className="text-emerald-600">One Vehicle at a Time!</span>
           </h1>
           <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
             VShield is an AI-powered biometric vehicle immobilization system that operates entirely offline, keeping your vehicle secure even in areas with poor connectivity.
