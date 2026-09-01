@@ -320,7 +320,7 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
       try {
         // Only return vehicles for the current user
         const dbVehicles = await VehicleModel.find({ user_id: (req as any).user._id });
-        res.json(dbVehicles.map((v: any) => ({ id: v._id, name: v.name, plate_number: v.plate_number, status: v.status })));
+        res.json(dbVehicles.map((v: any) => ({ id: v._id, name: v.name, plate_number: v.plate_number, status: v.status, documents: v.documents || [] })));
       } catch (err: any) {
         res.status(500).json({ error: err.message });
       }
@@ -339,7 +339,7 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
         status,
         user_id: (req as any).user._id
       });
-      res.json({ id: newVehicle._id, name: newVehicle.name, plate_number: newVehicle.plate_number, status: newVehicle.status });
+      res.json({ id: newVehicle._id, name: newVehicle.name, plate_number: newVehicle.plate_number, status: newVehicle.status, documents: newVehicle.documents || [] });
     } catch (err: any) {
       if (err.code === 11000) {
         return res.status(400).json({ error: "A vehicle with this plate number already exists." });
@@ -360,7 +360,7 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
       if (status) vehicle.status = status;
       
       await vehicle.save();
-      res.json({ id: vehicle._id, name: vehicle.name, plate_number: vehicle.plate_number, status: vehicle.status });
+      res.json({ id: vehicle._id, name: vehicle.name, plate_number: vehicle.plate_number, status: vehicle.status, documents: vehicle.documents || [] });
     } catch (err: any) {
       if (err.code === 11000) {
         return res.status(400).json({ error: "A vehicle with this plate number already exists." });
