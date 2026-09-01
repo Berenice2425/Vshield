@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { ShieldAlert, MapPin, Clock, Navigation, Loader2 } from 'lucide-react';
 
 interface ThreatAnalysis {
-  risk_score: number;
+  success: boolean;
+  riskScore: number;
   reasoning: string;
   recommendation: string;
 }
@@ -30,23 +31,22 @@ export default function ThreatSimulator() {
         },
         body: JSON.stringify({ location, time, movement_pattern: movementPattern })
       });
-      const data = await response.json();
       
-      if (!response.ok) {
-        if (response.status === 503 || data.retryable) {
-           setErrorMsg("Gemini is temporarily busy. Please try the analysis again in a moment.");
-        } else {
-           setErrorMsg(data.error || "An error occurred during threat analysis.");
-        }
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        setErrorMsg("Threat analysis is temporarily unavailable. Please try again.");
         return;
       }
       
-      if (data.error) {
-        setErrorMsg(data.error);
+      if (!response.ok || data.success !== true) {
+        const safeMessage = data.message || "Threat analysis is temporarily unavailable. Please try again.";
+        setErrorMsg(safeMessage);
         return;
       }
 
-      const riskScore = Number(data.risk_score);
+      const riskScore = Number(data.riskScore);
       const reasoning = data.reasoning;
       const recommendation = data.recommendation;
 
@@ -56,13 +56,14 @@ export default function ThreatSimulator() {
       }
 
       setResult({
-        risk_score: riskScore,
+        success: true,
+        riskScore,
         reasoning,
         recommendation
       });
     } catch (error) {
-      console.error(error);
-      setErrorMsg("Failed to connect to the server. Please try again.");
+      console.error("Threat analysis request failed:", error);
+      setErrorMsg("Threat analysis is temporarily unavailable. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -129,12 +130,12 @@ export default function ThreatSimulator() {
         </div>
       )}
 
-      {result && (
-        <div className={`mt-6 p-4 rounded-lg border ${result.risk_score > 0.6 ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
+      {result && result.success && (
+        <div className={`mt-6 p-4 rounded-lg border ${result.riskScore > 60 ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-gray-900">Analysis Result</h3>
-            <span className={`px-3 py-1 rounded-full text-sm font-bold ${result.risk_score > 0.6 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
-              Risk Score: {(result.risk_score * 100).toFixed(0)}%
+            <span className={`px-3 py-1 rounded-full text-sm font-bold ${result.riskScore > 60 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+              Risk Score: {result.riskScore.toFixed(0)}%
             </span>
           </div>
           <p className="text-sm text-gray-800 mb-2"><strong>Reasoning:</strong> {result.reasoning}</p>

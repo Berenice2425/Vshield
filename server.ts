@@ -152,48 +152,89 @@ async function startServer() {
       const { location, time, movement_pattern } = req.body;
       
       if (!ai) {
-        // Fallback mock if Gemini is not configured
         return res.json({
-          risk_score: 0.85,
+          success: true,
+          riskScore: 85,
           reasoning: "[MOCK ANALYSIS - GEMINI NOT CONFIGURED] The combination of high-risk zone and erratic movement at 2AM suggests a severe security threat.",
           recommendation: "Immobilize the vehicle immediately and dispatch security personnel."
         });
       }
 
       const prompt = `Analyze security context: Location: ${location} Time: ${time} Movement: ${movement_pattern}
-      Return JSON with risk_score (0-1), reasoning (string), recommendation (string). Make sure the JSON is clean and strictly matches the schema.`;
+      Return JSON with riskScore (0-100), reasoning (string), recommendation (string). Make sure the JSON is clean and strictly matches the schema.`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.7-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              risk_score: { type: Type.NUMBER },
-              reasoning: { type: Type.STRING },
-              recommendation: { type: Type.STRING },
-            },
-            required: ["risk_score", "reasoning", "recommendation"],
-          },
-        },
-      });
-
-      const parsedResponse = JSON.parse(response.text || "{}");
+      let parsedResponse;
+      let attempt = 0;
+      const maxRetries = 2;
       
-      if (MONGODB_URI && parsedResponse.risk_score >= 0.7) {
-        // Create an alert in the database for high threats
+      while (attempt <= maxRetries) {
         try {
-          // Find any vehicle to attach the alert to, or if a vehicleId was passed in, use that.
-          // Since it's a simulation, we'll try to find an active vehicle.
+          const response = await ai.models.generateContent({
+            model: "gemini-3.7-flash",
+            contents: prompt,
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  riskScore: { type: Type.NUMBER },
+                  reasoning: { type: Type.STRING },
+                  recommendation: { type: Type.STRING },
+                },
+                required: ["riskScore", "reasoning", "recommendation"],
+              },
+            },
+          });
+          parsedResponse = JSON.parse(response.text || "{}");
+          break; // Success
+        } catch (error: any) {
+          const status = error?.status || error?.response?.status;
+          const errorMessage = error?.message?.toLowerCase() || "";
+          const rawError = JSON.stringify(error) || "";
+          
+          const isTransient = status === 429 || status === 503 || 
+                             errorMessage.includes("429") || errorMessage.includes("503") || 
+                             errorMessage.includes("high demand") || errorMessage.includes("overloaded") || 
+                             errorMessage.includes("resource_exhausted") || errorMessage.includes("unavailable") ||
+                             errorMessage.includes("too many requests") || errorMessage.includes("temporarily") ||
+                             rawError.includes("503") || rawError.includes("429");
+          
+          if (!isTransient) {
+            throw error; // Bubble up permanent error
+          }
+          
+          if (attempt < maxRetries) {
+            attempt++;
+            const backoffTime = Math.pow(2, attempt) * 500;
+            console.log(`Gemini API transient error. Retrying in ${backoffTime}ms (Attempt ${attempt}/${maxRetries})...`);
+            await new Promise(resolve => setTimeout(resolve, backoffTime));
+          } else {
+            return res.status(503).json({
+              success: false,
+              error: "AI service temporarily unavailable",
+              message: "Gemini is temporarily busy. Please try the analysis again in a moment.",
+              retryable: true
+            });
+          }
+        }
+      }
+      
+      const normalizedResponse = {
+        success: true,
+        riskScore: Number(parsedResponse.riskScore) || (parsedResponse.risk_score != null ? Number(parsedResponse.risk_score) * 100 : 0),
+        reasoning: parsedResponse.reasoning || "No reasoning provided.",
+        recommendation: parsedResponse.recommendation || "No recommendation provided."
+      };
+
+      if (MONGODB_URI && normalizedResponse.riskScore >= 70) {
+        try {
           const vehicle = await VehicleModel.findOne({ user_id: (req as any).user._id });
           if (vehicle) {
             await AlertModel.create({
               vehicle_id: vehicle._id,
               type: "Threat Detected",
-              severity: parsedResponse.risk_score >= 0.9 ? "Critical" : "High",
-              message: parsedResponse.reasoning,
+              severity: normalizedResponse.riskScore >= 90 ? "Critical" : "High",
+              message: normalizedResponse.reasoning,
               status: "Active",
               location: { address: location },
             });
@@ -203,10 +244,14 @@ async function startServer() {
         }
       }
 
-      res.json(parsedResponse);
+      res.json(normalizedResponse);
     } catch (error: any) {
-      console.error("Threat analysis error:", error);
-      res.status(500).json({ error: "Failed to perform threat analysis due to an internal error." });
+      console.error("Threat analysis permanent error:", error.message);
+      res.status(500).json({ 
+        success: false, 
+        error: "Threat analysis failed", 
+        retryable: false 
+      });
     }
   });
 
