@@ -8,10 +8,10 @@ import multer from "multer";
 import { BlobServiceClient } from "@azure/storage-blob";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import UserModel from "./models/User";
-import VehicleModel from "./models/Vehicle";
-import AlertModel from "./models/Alert";
-import BiometricLog from "./models/BiometricLog";
+import UserModel from "./models/User.js";
+import VehicleModel from "./models/Vehicle.js";
+import AlertModel from "./models/Alert.js";
+import BiometricLog from "./models/BiometricLog.js";
 
 dotenv.config();
 
