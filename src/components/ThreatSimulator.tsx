@@ -41,7 +41,12 @@ export default function ThreatSimulator() {
       }
       
       if (!response.ok || data.success !== true) {
-        const safeMessage = data.message || "Threat analysis is temporarily unavailable. Please try again.";
+        let safeMessage = "Threat analysis is temporarily unavailable. Please try again.";
+        if (data.error === "AI_SERVICE_TEMPORARILY_UNAVAILABLE") {
+          safeMessage = "Gemini is temporarily busy. Please try again in a moment.";
+        } else if (data.message) {
+          safeMessage = data.message;
+        }
         setErrorMsg(safeMessage);
         return;
       }
@@ -50,7 +55,7 @@ export default function ThreatSimulator() {
       const reasoning = data.reasoning;
       const recommendation = data.recommendation;
 
-      if (!Number.isFinite(riskScore) || typeof reasoning !== 'string' || !reasoning.trim() || typeof recommendation !== 'string' || !recommendation.trim()) {
+      if (!Number.isFinite(Number(riskScore)) || typeof reasoning !== 'string' || !reasoning.trim() || typeof recommendation !== 'string' || !recommendation.trim()) {
         setErrorMsg("Received invalid response format from the AI service.");
         return;
       }

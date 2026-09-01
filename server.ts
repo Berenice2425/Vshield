@@ -211,7 +211,7 @@ async function startServer() {
           } else {
             return res.status(503).json({
               success: false,
-              error: "AI service temporarily unavailable",
+              error: "AI_SERVICE_TEMPORARILY_UNAVAILABLE",
               message: "Gemini is temporarily busy. Please try the analysis again in a moment.",
               retryable: true
             });
@@ -247,11 +247,7 @@ async function startServer() {
       res.json(normalizedResponse);
     } catch (error: any) {
       console.error("Threat analysis permanent error:", error.message);
-      res.status(500).json({ 
-        success: false, 
-        error: "Threat analysis failed", 
-        retryable: false 
-      });
+      res.status(500).json({ success: false, error: "AI_ANALYSIS_FAILED", message: "Threat analysis could not be completed.", retryable: false });
     }
   });
 
