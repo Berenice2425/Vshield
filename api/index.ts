@@ -3,9 +3,9 @@ import { appPromise } from '../server';
 export default async function handler(req: any, res: any) {
   try {
     const app = await appPromise;
-    app(req, res);
+    return app(req, res);
   } catch (err) {
-    console.error("Vercel API Handler Error:", err);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error('Vercel API Handler Error:', err);
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
