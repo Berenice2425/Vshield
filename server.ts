@@ -205,8 +205,8 @@ async function startServer() {
 
       res.json(parsedResponse);
     } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: error.message });
+      console.error("Threat analysis error:", error);
+      res.status(500).json({ error: "Failed to perform threat analysis due to an internal error." });
     }
   });
 

@@ -10,6 +10,7 @@ interface ThreatAnalysis {
 export default function ThreatSimulator() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ThreatAnalysis | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [location, setLocation] = useState('Lagos Mainland, High-risk zone at 2AM');
   const [time, setTime] = useState('02:15 AM');
@@ -18,6 +19,7 @@ export default function ThreatSimulator() {
   const analyzeThreat = async () => {
     setLoading(true);
     setResult(null);
+    setErrorMsg(null);
     try {
       const token = localStorage.getItem('vshield_token');
       const response = await fetch('/api/ai/analyze-threat', {
@@ -29,9 +31,38 @@ export default function ThreatSimulator() {
         body: JSON.stringify({ location, time, movement_pattern: movementPattern })
       });
       const data = await response.json();
-      setResult(data);
+      
+      if (!response.ok) {
+        if (response.status === 503 || data.retryable) {
+           setErrorMsg("Gemini is temporarily busy. Please try the analysis again in a moment.");
+        } else {
+           setErrorMsg(data.error || "An error occurred during threat analysis.");
+        }
+        return;
+      }
+      
+      if (data.error) {
+        setErrorMsg(data.error);
+        return;
+      }
+
+      const riskScore = Number(data.risk_score);
+      const reasoning = data.reasoning;
+      const recommendation = data.recommendation;
+
+      if (!Number.isFinite(riskScore) || typeof reasoning !== 'string' || !reasoning.trim() || typeof recommendation !== 'string' || !recommendation.trim()) {
+        setErrorMsg("Received invalid response format from the AI service.");
+        return;
+      }
+
+      setResult({
+        risk_score: riskScore,
+        reasoning,
+        recommendation
+      });
     } catch (error) {
       console.error(error);
+      setErrorMsg("Failed to connect to the server. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -91,6 +122,12 @@ export default function ThreatSimulator() {
         {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShieldAlert className="w-5 h-5" />}
         <span>{loading ? 'Analyzing with Gemini...' : 'Run Threat Analysis'}</span>
       </button>
+
+      {errorMsg && (
+        <div className="mt-6 p-4 rounded-lg border bg-amber-50 border-amber-200">
+          <p className="text-sm font-medium text-amber-800">{errorMsg}</p>
+        </div>
+      )}
 
       {result && (
         <div className={`mt-6 p-4 rounded-lg border ${result.risk_score > 0.6 ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
