@@ -175,15 +175,15 @@ export default function FleetManagement() {
       } else {
         if (response.status === 401) {
           setDocUploadError("Your session has expired. Please sign in again.");
+        } else if (data?.error) {
+          setDocUploadError(data.error);
         } else if (response.status === 403) {
           setDocUploadError("You do not have permission to access this document.");
-        } else if (response.status === 400 && data.error) {
-          setDocUploadError(data.error);
         } else {
           setDocUploadError("Document upload failed. Please try again.");
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       setDocUploadError("Document upload failed. Please try again.");
     } finally {
       setDocUploadLoading(false);

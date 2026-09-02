@@ -14,7 +14,98 @@ import BiometricLog from "./models/BiometricLog.js";
 
 dotenv.config();
 
-const upload = multer({ storage: multer.memoryStorage() });
+const MAX_DOCUMENT_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: MAX_DOCUMENT_FILE_SIZE
+  }
+});
+
+const GLOBAL_ALLOWED_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+];
+
+const CATEGORY_ALLOWED_MIME_TYPES: Record<string, string[]> = {
+  vehicle_photo: [
+    "image/jpeg",
+    "image/png",
+    "image/webp"
+  ],
+  inspection_photo: [
+    "image/jpeg",
+    "image/png",
+    "image/webp"
+  ],
+  incident_photo: [
+    "image/jpeg",
+    "image/png",
+    "image/webp"
+  ],
+  registration_document: [
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ],
+  ownership_document: [
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ],
+  maintenance_document: [
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ],
+  incident_document: [
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ]
+};
+
+const MIME_DISPLAY_NAMES: Record<string, string> = {
+  "image/jpeg": "JPEG",
+  "image/png": "PNG",
+  "image/webp": "WebP",
+  "application/pdf": "PDF",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "DOCX"
+};
+
+function normalizeMimeType(mimetype: string, originalname: string): string {
+  let mime = (mimetype || "").toLowerCase().trim();
+  const ext = path.extname(originalname || "").toLowerCase();
+
+  // Normalize JPEG variants
+  if (mime === "image/jpg" || mime === "image/pjpeg") {
+    mime = "image/jpeg";
+  }
+
+  // Recognize .jpg and .jpeg as image/jpeg
+  if (ext === ".jpg" || ext === ".jpeg") {
+    mime = "image/jpeg";
+  } else if (ext === ".png" && (mime === "application/octet-stream" || !mime)) {
+    mime = "image/png";
+  } else if (ext === ".webp" && (mime === "application/octet-stream" || !mime)) {
+    mime = "image/webp";
+  } else if (ext === ".pdf" && (mime === "application/octet-stream" || !mime)) {
+    mime = "application/pdf";
+  } else if (ext === ".docx" && (mime === "application/octet-stream" || !mime)) {
+    mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+
+  return mime;
+}
 
 const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING;
 const AZURE_STORAGE_CONTAINER_NAME = process.env.AZURE_STORAGE_CONTAINER_NAME || "vshield";
@@ -102,38 +193,68 @@ async function startServer() {
 
   // API routes
   function isTransientGeminiError(error: any): boolean {
-  if (!error) return false;
-  
-  const status = error.status || error.statusCode || error.code || error.response?.status;
-  const message = (typeof error.message === 'string' ? error.message : "").toLowerCase();
-  let nestedCode;
-  
-  try {
-    if (error.message && typeof error.message === 'string' && error.message.startsWith('{')) {
-      const parsed = JSON.parse(error.message);
-      nestedCode = parsed.error?.code || parsed.code;
-    }
-  } catch (e) {
-    // Ignore parse errors
-  }
-  
-  const rawString = (() => {
+    if (!error) return false;
+    
+    const status = error.status || error.statusCode || error.code || error.response?.status;
+    const message = (typeof error.message === 'string' ? error.message : "").toLowerCase();
+    const name = (typeof error.name === 'string' ? error.name : "").toLowerCase();
+    let nestedCode;
+    
     try {
-      return JSON.stringify(error).toLowerCase();
-    } catch {
-      return "";
+      if (error.message && typeof error.message === 'string' && error.message.startsWith('{')) {
+        const parsed = JSON.parse(error.message);
+        nestedCode = parsed.error?.code || parsed.code;
+      }
+    } catch (e) {
+      // Ignore parse errors
     }
-  })();
-  
-  const isTransientStatus = status === 429 || status === 503 || nestedCode === 429 || nestedCode === 503;
-  const isTransientMessage = message.includes("429") || message.includes("503") || 
-                             message.includes("high demand") || message.includes("overloaded") || 
-                             message.includes("resource_exhausted") || message.includes("unavailable") ||
-                             message.includes("too many requests") || message.includes("temporarily");
-  const isTransientRaw = rawString.includes("429") || rawString.includes("503") || rawString.includes("resource_exhausted") || rawString.includes("unavailable");
-  
-  return Boolean(isTransientStatus || isTransientMessage || isTransientRaw);
-}
+
+    const causeMessage = error.cause ? (typeof error.cause.message === 'string' ? error.cause.message.toLowerCase() : "") : "";
+    const causeCode = error.cause?.code ? String(error.cause.code).toLowerCase() : "";
+    
+    const rawString = (() => {
+      try {
+        return JSON.stringify(error).toLowerCase();
+      } catch {
+        return "";
+      }
+    })();
+    
+    const isTransientStatus = status === 429 || status === 503 || status === 502 || status === 504 || status === 500 ||
+                              nestedCode === 429 || nestedCode === 503 || nestedCode === 502 || nestedCode === 504 || nestedCode === 500;
+                              
+    const isTransientMessage = message.includes("429") || message.includes("503") || message.includes("502") || message.includes("504") || message.includes("500") || 
+                               message.includes("high demand") || message.includes("overloaded") || 
+                               message.includes("resource_exhausted") || message.includes("unavailable") ||
+                               message.includes("too many requests") || message.includes("temporarily") ||
+                               message.includes("fetch failed") || message.includes("network") ||
+                               message.includes("timeout") || message.includes("timed out") ||
+                               message.includes("econnreset") || message.includes("etimedout") ||
+                               message.includes("econnrefused") || message.includes("enotfound") ||
+                               message.includes("socket") || message.includes("eai_again") ||
+                               causeMessage.includes("econnreset") || causeMessage.includes("etimedout") ||
+                               causeMessage.includes("enotfound") || causeMessage.includes("econnrefused") || causeMessage.includes("fetch failed") ||
+                               causeCode.includes("econnreset") || causeCode.includes("etimedout") ||
+                               causeCode.includes("enotfound") || causeCode.includes("econnrefused") ||
+                               name.includes("fetcherror") || name.includes("aborterror") || name.includes("typeerror");
+                               
+    const isTransientRaw = rawString.includes("429") || rawString.includes("503") || rawString.includes("502") || rawString.includes("504") ||
+                           rawString.includes("resource_exhausted") || rawString.includes("unavailable") || rawString.includes("fetch failed");
+    
+    return Boolean(isTransientStatus || isTransientMessage || isTransientRaw);
+  }
+
+  function getAi(): GoogleGenAI | null {
+    if (!process.env.GEMINI_API_KEY) return null;
+    return new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: {
+        headers: {
+          "User-Agent": "aistudio-build",
+        },
+      },
+    });
+  }
 
 const authMiddleware = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const token = req.headers.authorization;
@@ -169,21 +290,10 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
     res.json({ status: "ok" });
   });
 
-  let ai: GoogleGenAI | null = null;
-  if (process.env.GEMINI_API_KEY) {
-    ai = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
-      httpOptions: {
-        headers: {
-          "User-Agent": "aistudio-build",
-        },
-      },
-    });
-  }
-
   app.post("/api/ai/analyze-threat", authMiddleware, async (req, res) => {
     try {
       const { location, time, movement_pattern } = req.body;
+      const ai = getAi();
       
       if (!ai) {
         return res.json({
@@ -229,7 +339,7 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
           if (attempt < maxRetries) {
             attempt++;
             const backoffTime = Math.pow(2, attempt) * 500;
-            console.log(`Gemini API transient error. Retrying in ${backoffTime}ms (Attempt ${attempt}/${maxRetries})...`);
+            console.log(`Gemini API transient error (${error?.message || "network/transient"}). Retrying in ${backoffTime}ms (Attempt ${attempt}/${maxRetries})...`);
             await new Promise(resolve => setTimeout(resolve, backoffTime));
           } else {
             return res.status(503).json({
@@ -244,9 +354,9 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
       
       const normalizedResponse = {
         success: true,
-        riskScore: Number(parsedResponse.riskScore) || (parsedResponse.risk_score != null ? Number(parsedResponse.risk_score) * 100 : 0),
-        reasoning: parsedResponse.reasoning || "No reasoning provided.",
-        recommendation: parsedResponse.recommendation || "No recommendation provided."
+        riskScore: Number(parsedResponse?.riskScore) || (parsedResponse?.risk_score != null ? Number(parsedResponse.risk_score) * 100 : 0),
+        reasoning: parsedResponse?.reasoning || "No reasoning provided.",
+        recommendation: parsedResponse?.recommendation || "No recommendation provided."
       };
 
       if (MONGODB_URI && normalizedResponse.riskScore >= 70) {
@@ -269,7 +379,15 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
 
       res.json(normalizedResponse);
     } catch (error: any) {
-      console.error("Threat analysis permanent error:", error.message);
+      console.error("Threat analysis error:", error?.message || error);
+      if (isTransientGeminiError(error)) {
+        return res.status(503).json({
+          success: false,
+          error: "AI_SERVICE_TEMPORARILY_UNAVAILABLE",
+          message: "Gemini is temporarily busy. Please try the analysis again in a moment.",
+          retryable: true
+        });
+      }
       res.status(500).json({ success: false, error: "AI_ANALYSIS_FAILED", message: "Threat analysis could not be completed.", retryable: false });
     }
   });
@@ -521,7 +639,20 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
     }
   });
 
-  app.post("/api/vehicles/:id/documents", authMiddleware, upload.single("file"), async (req, res) => {
+  app.post("/api/vehicles/:id/documents", authMiddleware, (req, res, next) => {
+    upload.single("file")(req, res, (err: any) => {
+      if (err) {
+        if (err instanceof multer.MulterError) {
+          if (err.code === "LIMIT_FILE_SIZE") {
+            return res.status(400).json({ error: "File exceeds the maximum permitted size." });
+          }
+          return res.status(400).json({ error: `File upload error: ${err.message}` });
+        }
+        return res.status(400).json({ error: "File upload failed." });
+      }
+      next();
+    });
+  }, async (req, res) => {
     try {
       if (!blobServiceClient || !AZURE_STORAGE_CONTAINER_NAME) {
         return res.status(503).json({ error: "Azure Storage is not configured on the server." });
@@ -537,31 +668,69 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
       const vehicle = await VehicleModel.findOne({ _id: vehicleId, user_id: (req as any).user._id });
       if (!vehicle) return res.status(404).json({ error: "Vehicle not found" });
 
-      // Security: Prevent biometric files
-      if (category === 'biometric' || file.mimetype.includes('biometric')) {
+      // Security: Strictly prohibit biometric data, facial embeddings, fingerprint templates, vectors
+      const fileLower = (file.originalname || "").toLowerCase();
+      const mimeLower = (file.mimetype || "").toLowerCase();
+      const catLower = (category || "").toLowerCase();
+      if (
+        catLower.includes('biometric') ||
+        mimeLower.includes('biometric') ||
+        fileLower.includes('biometric') ||
+        fileLower.includes('face_template') ||
+        fileLower.includes('facial_template') ||
+        fileLower.includes('facial_embedding') ||
+        fileLower.includes('fingerprint') ||
+        fileLower.includes('biometric_vector') ||
+        fileLower.includes('biometricdata')
+      ) {
          return res.status(403).json({ error: "Biometric data upload is strictly forbidden." });
       }
 
-      const allowedCategories = ['vehicle_photo', 'inspection_photo', 'registration_document', 'ownership_document', 'maintenance_document', 'incident_photo', 'incident_document'];
-      const safeCategory = allowedCategories.includes(category) ? category : 'other_vehicle_document';
+      // Validate category
+      if (!category || !CATEGORY_ALLOWED_MIME_TYPES[category]) {
+        return res.status(400).json({ error: "Invalid document category." });
+      }
+
+      // Validate MIME type
+      const normalizedMime = normalizeMimeType(file.mimetype, file.originalname);
+
+      if (!GLOBAL_ALLOWED_MIME_TYPES.includes(normalizedMime)) {
+        return res.status(400).json({
+          error: "Unsupported file type. Please upload JPEG, PNG, WebP, PDF, or DOCX."
+        });
+      }
+
+      // Validate category/MIME rules
+      const allowedForCategory = CATEGORY_ALLOWED_MIME_TYPES[category];
+      if (!allowedForCategory.includes(normalizedMime)) {
+        const mimeLabel = MIME_DISPLAY_NAMES[normalizedMime] || "This file type";
+        return res.status(400).json({
+          error: `${mimeLabel} files are not permitted for this document category.`
+        });
+      }
+
+      // Enforce file size restriction
+      if (file.size > MAX_DOCUMENT_FILE_SIZE) {
+        return res.status(400).json({ error: "File exceeds the maximum permitted size." });
+      }
 
       const containerClient = blobServiceClient.getContainerClient(AZURE_STORAGE_CONTAINER_NAME);
       
       // Enforce private container (no public access)
       await containerClient.createIfNotExists();
 
-      const blobName = `${safeCategory}-${vehicleId}-${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const blobName = `${category}-${vehicleId}-${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
       await blockBlobClient.uploadData(file.buffer, {
-        blobHTTPHeaders: { blobContentType: file.mimetype }
+        blobHTTPHeaders: { blobContentType: normalizedMime }
       });
 
       const documentMeta = {
         blobId: blobName,
         fileName: file.originalname,
-        category: safeCategory,
-        contentType: file.mimetype,
+        category: category,
+        contentType: normalizedMime,
         size: file.size,
         uploadedAt: new Date(),
         url: `/api/vehicles/${vehicleId}/documents/${encodeURIComponent(blobName)}` // Proxy URL instead of direct Azure URL
@@ -573,7 +742,7 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
 
       res.status(201).json({ message: "Document uploaded successfully", document: documentMeta });
     } catch (err: any) {
-      console.error("Azure upload error:", err);
+      console.error("Azure upload error:", err?.message || err);
       res.status(500).json({ error: "Failed to upload document" });
     }
   });
