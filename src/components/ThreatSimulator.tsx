@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { ShieldAlert, MapPin, Clock, Navigation, Loader2 } from 'lucide-react';
+import { AlertContext } from '../App';
 
 interface ThreatAnalysis {
   success: boolean;
@@ -9,6 +10,7 @@ interface ThreatAnalysis {
 }
 
 export default function ThreatSimulator() {
+  const { refreshAlertCount } = useContext(AlertContext);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ThreatAnalysis | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -66,6 +68,10 @@ export default function ThreatSimulator() {
         reasoning,
         recommendation
       });
+
+      if (riskScore >= 70) {
+        await refreshAlertCount();
+      }
     } catch (error) {
       console.error("Threat analysis request failed:", error);
       setErrorMsg("Threat analysis is temporarily unavailable. Please try again.");

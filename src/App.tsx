@@ -18,30 +18,32 @@ import Login from './components/Login';
 // Create a context for sharing the active alerts count
 export const AlertContext = createContext({
   activeAlertsCount: 0,
-  decrementAlertCount: () => {}
+  decrementAlertCount: () => {},
+  refreshAlertCount: async () => {}
 });
 
 function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [activeAlertsCount, setActiveAlertsCount] = useState(0);
 
+  const refreshAlertCount = async () => {
+    try {
+      const token = localStorage.getItem('vshield_token');
+      if (!token) return;
+      const res = await fetch('/api/dashboard/stats', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setActiveAlertsCount(data.activeAlerts);
+      }
+    } catch (err) {
+      console.error("Failed to fetch alert count", err);
+    }
+  };
+
   // Fetch the count initially and when layout remounts on navigation
   useEffect(() => {
-    const fetchAlertCount = async () => {
-      try {
-        const token = localStorage.getItem('vshield_token');
-        if (!token) return;
-        const res = await fetch('/api/dashboard/stats', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setActiveAlertsCount(data.activeAlerts);
-        }
-      } catch (err) {
-        console.error("Failed to fetch alert count", err);
-      }
-    };
-    fetchAlertCount();
+    refreshAlertCount();
   }, []);
 
   const decrementAlertCount = () => {
@@ -49,7 +51,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AlertContext.Provider value={{ activeAlertsCount, decrementAlertCount }}>
+    <AlertContext.Provider value={{ activeAlertsCount, decrementAlertCount, refreshAlertCount }}>
       <div className="flex min-h-screen bg-slate-50 font-sans">
         <Sidebar />
         <main className="flex-1 p-8 overflow-y-auto">
@@ -84,6 +86,7 @@ function PlaceholderPage({ title, description }: { title: string, description: s
 }
 
 function Dashboard() {
+  const { activeAlertsCount } = useContext(AlertContext);
   const [stats, setStats] = useState({ totalVehicles: 0, activeAlerts: 0, immobilized: 0 });
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -125,7 +128,7 @@ function Dashboard() {
         </div>
       ) : (
         <>
-          <DashboardStats stats={stats} />
+          <DashboardStats stats={{ ...stats, activeAlerts: activeAlertsCount }} />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <VehicleList vehicles={vehicles} />
