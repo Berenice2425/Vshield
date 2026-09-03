@@ -136,12 +136,9 @@ if (!process.env.JWT_SECRET) {
 async function startServer() {
   const app = express();
 
-  console.log("SERVER ENTRY EXECUTED");
   if (MONGODB_URI) {
-    console.log("MONGODB CONNECTION ATTEMPTED");
     try {
       await mongoose.connect(MONGODB_URI);
-      console.log("MONGODB CONNECTED");
       
       const count = await UserModel.countDocuments();
       if (count === 0) {
@@ -156,15 +153,12 @@ async function startServer() {
             { name: "Toyota Hilux", plate_number: "KJA-234AB", status: "Armed", user_id: admin._id },
             { name: "Honda Accord", plate_number: "LSD-123XY", status: "Driving", user_id: admin._id },
           ]);
-          console.log("Database seeded");
         }
       }
 
       const hasBootstrapVars = Boolean(process.env.BOOTSTRAP_ADMIN_EMAIL && process.env.BOOTSTRAP_ADMIN_PASSWORD);
-      console.log(`BOOTSTRAP VARIABLES PRESENT: ${hasBootstrapVars ? 'YES' : 'NO'}`);
       
-      if (hasBootstrapVars) {
-        console.log("BOOTSTRAP FUNCTION ENTERED");
+      if (hasBootstrapVars && process.env.BOOTSTRAP_ADMIN_EMAIL && process.env.BOOTSTRAP_ADMIN_PASSWORD) {
         const bootstrapEmail = process.env.BOOTSTRAP_ADMIN_EMAIL.toLowerCase().trim();
         const existingAdmin = await UserModel.findOne({ email: bootstrapEmail });
         const hashedBootstrapPassword = await bcrypt.hash(process.env.BOOTSTRAP_ADMIN_PASSWORD, 10);
@@ -179,7 +173,6 @@ async function startServer() {
             name: "Bootstrap Admin",
           });
         }
-        console.log("BOOTSTRAP COMPLETE");
       }
     } catch (err) {
       console.error("MongoDB connection error:", err);
