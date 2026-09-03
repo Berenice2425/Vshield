@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { AlertTriangle, ShieldAlert, CheckCircle, Info, Loader2, MapPin, Clock, Car } from 'lucide-react';
+import { AlertContext } from '../App';
 
 interface Alert {
   id: string;
@@ -22,6 +23,8 @@ export default function Alerts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
+  const { decrementAlertCount } = useContext(AlertContext);
+
   // Filtering
   const [filterSeverity, setFilterSeverity] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
@@ -68,10 +71,16 @@ export default function Alerts() {
       });
       
       if (response.ok) {
+        const oldAlert = alerts.find(a => a.id === id);
+        
         // Update local state to reflect change quickly
         setAlerts(alerts.map(a => a.id === id ? { ...a, status: newStatus } : a));
         if (selectedAlert && selectedAlert.id === id) {
           setSelectedAlert({ ...selectedAlert, status: newStatus });
+        }
+        
+        if (oldAlert && oldAlert.status === 'Active' && (newStatus === 'Acknowledged' || newStatus === 'Resolved')) {
+          decrementAlertCount();
         }
       } else {
         const data = await response.json();

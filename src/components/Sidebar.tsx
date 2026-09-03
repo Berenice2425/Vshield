@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Shield, Car, Bell, Settings, Fingerprint, Activity, LogOut } from 'lucide-react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { AlertContext } from '../App';
 
 export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { activeAlertsCount } = useContext(AlertContext);
 
   const handleLogout = async () => {
     try {
@@ -27,7 +29,7 @@ export default function Sidebar() {
         <NavItem to="/dashboard" icon={<Activity />} label="Dashboard" active={location.pathname === '/dashboard'} />
         <NavItem to="/fleet" icon={<Car />} label="Fleet Management" active={location.pathname === '/fleet'} />
         <NavItem to="/biometrics" icon={<Fingerprint />} label="Biometrics" active={location.pathname === '/biometrics'} />
-        <NavItem to="/alerts" icon={<Bell />} label="Alerts" badge={1} active={location.pathname === '/alerts'} />
+        <NavItem to="/alerts" icon={<Bell />} label="Alerts" badge={activeAlertsCount > 0 ? activeAlertsCount : undefined} active={location.pathname === '/alerts'} />
         <NavItem to="/settings" icon={<Settings />} label="Settings" active={location.pathname === '/settings'} />
       </nav>
       

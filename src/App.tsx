@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, createContext, useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import DashboardStats from './components/DashboardStats';
@@ -15,14 +15,48 @@ import Biometrics from './components/Biometrics';
 import LandingPage from './components/LandingPage';
 import Login from './components/Login';
 
+// Create a context for sharing the active alerts count
+export const AlertContext = createContext({
+  activeAlertsCount: 0,
+  decrementAlertCount: () => {}
+});
+
 function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [activeAlertsCount, setActiveAlertsCount] = useState(0);
+
+  // Fetch the count initially and when layout remounts on navigation
+  useEffect(() => {
+    const fetchAlertCount = async () => {
+      try {
+        const token = localStorage.getItem('vshield_token');
+        if (!token) return;
+        const res = await fetch('/api/dashboard/stats', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setActiveAlertsCount(data.activeAlerts);
+        }
+      } catch (err) {
+        console.error("Failed to fetch alert count", err);
+      }
+    };
+    fetchAlertCount();
+  }, []);
+
+  const decrementAlertCount = () => {
+    setActiveAlertsCount(prev => Math.max(0, prev - 1));
+  };
+
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans">
-      <Sidebar />
-      <main className="flex-1 p-8 overflow-y-auto">
-        {children}
-      </main>
-    </div>
+    <AlertContext.Provider value={{ activeAlertsCount, decrementAlertCount }}>
+      <div className="flex min-h-screen bg-slate-50 font-sans">
+        <Sidebar />
+        <main className="flex-1 p-8 overflow-y-auto">
+          {children}
+        </main>
+      </div>
+    </AlertContext.Provider>
   );
 }
 
