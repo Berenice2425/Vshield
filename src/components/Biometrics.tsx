@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Fingerprint, CheckCircle, XCircle, AlertCircle, Loader2, Camera, Car, Info } from 'lucide-react';
+import { Fingerprint, CheckCircle, XCircle, AlertCircle, Loader2, Camera, Car, Info, Check } from 'lucide-react';
 
 interface BiometricEvent {
   id: string;
@@ -22,24 +22,45 @@ interface BiometricsData {
 export default function Biometrics() {
   const [data, setData] = useState<BiometricsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshSuccess, setRefreshSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  const fetchBiometrics = async () => {
+  const fetchBiometrics = async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+      setError('');
+      setRefreshSuccess(false);
+    }
+    
     try {
       const token = localStorage.getItem('vshield_token');
       const response = await fetch('/api/biometrics/logs', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      
       const result = await response.json();
+      
       if (response.ok) {
         setData(result);
+        if (isRefresh) {
+          setRefreshSuccess(true);
+          setTimeout(() => setRefreshSuccess(false), 3000);
+        }
       } else {
-        setError(result.error || 'Failed to fetch biometric logs');
+        if (response.status === 401 || response.status === 403) {
+          setError('Authentication failed. Please sign in again.');
+        } else {
+          setError(result.error || 'Failed to fetch biometric logs.');
+        }
       }
     } catch (err) {
-      setError('An error occurred while fetching biometric logs');
+      setError('A network error occurred while fetching biometric logs.');
     } finally {
       setLoading(false);
+      if (isRefresh) {
+        setRefreshing(false);
+      }
     }
   };
 
@@ -59,7 +80,7 @@ export default function Biometrics() {
       : <XCircle className="w-5 h-5 text-red-600" />;
   };
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
@@ -75,14 +96,29 @@ export default function Biometrics() {
       <header className="mb-8 flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Biometrics</h1>
-          <p className="text-gray-500 mt-1">Manage facial recognition and identity verification.</p>
+          <p className="text-gray-500 mt-1">Monitor edge biometric verification events and device status.</p>
         </div>
-        <button 
-          onClick={fetchBiometrics}
-          className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
-        >
-          Refresh Logs
-        </button>
+        <div className="flex items-center space-x-3">
+          {refreshSuccess && (
+            <span className="flex items-center text-sm text-emerald-600 font-medium animate-in fade-in">
+              <Check className="w-4 h-4 mr-1" /> Updated
+            </span>
+          )}
+          <button 
+            onClick={() => fetchBiometrics(true)}
+            disabled={refreshing}
+            className="flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {refreshing ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Refreshing...
+              </>
+            ) : (
+              'Refresh Logs'
+            )}
+          </button>
+        </div>
       </header>
 
       {error && (
@@ -105,10 +141,9 @@ export default function Biometrics() {
           <div>
             <p className="text-sm font-medium text-gray-500 mb-1">System Status</p>
             <div className="flex items-center">
-              <span className="text-2xl font-bold text-gray-900 mr-2">Online</span>
+              <span className="text-2xl font-bold text-gray-900 mr-2">Awaiting Device</span>
               <span className="flex h-3 w-3 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-gray-400"></span>
               </span>
             </div>
           </div>
@@ -248,3 +283,4 @@ export default function Biometrics() {
     </>
   );
 }
+
