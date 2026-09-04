@@ -550,9 +550,14 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
   app.get("/api/dashboard/stats", authMiddleware, async (req, res) => {
     if (MONGODB_URI) {
       try {
-        const totalVehicles = await VehicleModel.countDocuments();
-        const immobilized = await VehicleModel.countDocuments({ status: "Immobilized" });
-        const activeAlerts = await AlertModel.countDocuments({ status: "Active" });
+        const userId = (req as any).user._id;
+        const totalVehicles = await VehicleModel.countDocuments({ user_id: userId });
+        const immobilized = await VehicleModel.countDocuments({ user_id: userId, status: "Immobilized" });
+        
+        const userVehicles = await VehicleModel.find({ user_id: userId });
+        const vehicleIds = userVehicles.map(v => v._id);
+        const activeAlerts = await AlertModel.countDocuments({ vehicle_id: { $in: vehicleIds }, status: "Active" });
+        
         res.json({
           totalVehicles,
           activeAlerts,
