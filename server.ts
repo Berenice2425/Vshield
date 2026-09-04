@@ -139,41 +139,7 @@ async function startServer() {
   if (MONGODB_URI) {
     try {
       await mongoose.connect(MONGODB_URI);
-      
-      const count = await UserModel.countDocuments();
-      if (count === 0) {
-        if (process.env.INITIAL_ADMIN_PASSWORD) {
-          const hashedPassword = await bcrypt.hash(process.env.INITIAL_ADMIN_PASSWORD, 10);
-          const admin = await UserModel.create({
-            email: process.env.INITIAL_ADMIN_EMAIL || "manager@vshield.ng",
-            password: hashedPassword,
-            name: "Fleet Manager",
-          });
-          await VehicleModel.create([
-            { name: "Toyota Hilux", plate_number: "KJA-234AB", status: "Armed", user_id: admin._id },
-            { name: "Honda Accord", plate_number: "LSD-123XY", status: "Driving", user_id: admin._id },
-          ]);
-        }
-      }
-
-      const hasBootstrapVars = Boolean(process.env.BOOTSTRAP_ADMIN_EMAIL && process.env.BOOTSTRAP_ADMIN_PASSWORD);
-      
-      if (hasBootstrapVars && process.env.BOOTSTRAP_ADMIN_EMAIL && process.env.BOOTSTRAP_ADMIN_PASSWORD) {
-        const bootstrapEmail = process.env.BOOTSTRAP_ADMIN_EMAIL.toLowerCase().trim();
-        const existingAdmin = await UserModel.findOne({ email: bootstrapEmail });
-        const hashedBootstrapPassword = await bcrypt.hash(process.env.BOOTSTRAP_ADMIN_PASSWORD, 10);
-        
-        if (existingAdmin) {
-          existingAdmin.password = hashedBootstrapPassword;
-          await existingAdmin.save();
-        } else {
-          await UserModel.create({
-            email: bootstrapEmail,
-            password: hashedBootstrapPassword,
-            name: "Bootstrap Admin",
-          });
-        }
-      }
+      console.log("Connected to MongoDB");
     } catch (err) {
       console.error("MongoDB connection error:", err);
     }
