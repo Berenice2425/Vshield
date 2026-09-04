@@ -12,6 +12,7 @@ import VehicleList from './components/VehicleList';
 import FleetManagement from './components/FleetManagement';
 import Alerts from './components/Alerts';
 import Biometrics from './components/Biometrics';
+import Settings from './components/Settings';
 import LandingPage from './components/LandingPage';
 import Login from './components/Login';
 
@@ -180,7 +181,7 @@ export default function App() {
         />
         <Route 
           path="/settings" 
-          element={<ProtectedRoute><DashboardLayout><PlaceholderPage title="Settings" description="System configuration." /></DashboardLayout></ProtectedRoute>} 
+          element={<ProtectedRoute><DashboardLayout><Settings /></DashboardLayout></ProtectedRoute>} 
         />
         
         <Route path="*" element={<Navigate to="/" replace />} />
