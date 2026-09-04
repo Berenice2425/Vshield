@@ -72,7 +72,7 @@ export default function LandingPage() {
             <Shield className="w-6 h-6 text-emerald-500" />
             <span className="text-xl font-bold text-white">VShield</span>
           </div>
-          <p className="text-sm">© 2026 VShield - Google Africa Applied AI Lab. All rights reserved.</p>
+          <p className="text-sm">© 2026 VShield. All rights reserved.</p>
         </div>
       </footer>
     </div>

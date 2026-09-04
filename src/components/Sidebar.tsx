@@ -41,10 +41,6 @@ export default function Sidebar() {
           <LogOut className="w-5 h-5" />
           <span className="font-medium">Log Out</span>
         </button>
-        <div className="text-xs text-emerald-400/60">
-          Google Africa Applied AI Lab<br />
-          Document v1.0
-        </div>
       </div>
     </div>
   );
