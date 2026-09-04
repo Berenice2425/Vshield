@@ -7,6 +7,7 @@ import multer from "multer";
 import { BlobServiceClient } from "@azure/storage-blob";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import rateLimit from "express-rate-limit";
 import UserModel from "./models/User.js";
 import VehicleModel from "./models/Vehicle.js";
 import AlertModel from "./models/Alert.js";
@@ -135,6 +136,7 @@ if (!process.env.JWT_SECRET) {
 // Mongoose connection moved inside startServer
 async function startServer() {
   const app = express();
+  app.set('trust proxy', 1);
 
   if (MONGODB_URI) {
     try {
@@ -358,7 +360,19 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
     { id: 2, name: "Honda Accord", plate_number: "LSD-123XY", status: "Driving" },
   ];
 
-  app.post("/api/auth/login", async (req, res) => {
+  const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // Limit each IP to 5 requests per windowMs
+    skipSuccessfulRequests: true, // Do not consume the quota on successful logins
+    message: {
+      error: "TOO_MANY_LOGIN_ATTEMPTS",
+      message: "Too many login attempts. Please try again later."
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  app.post("/api/auth/login", loginLimiter, async (req, res) => {
     const { email, password } = req.body;
     
     if (MONGODB_URI) {
