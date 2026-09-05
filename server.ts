@@ -251,7 +251,18 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
     res.json({ status: "ok" });
   });
 
-  app.post("/api/ai/analyze-threat", authMiddleware, async (req, res) => {
+  const aiLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 10, // Limit each IP to 10 requests per windowMs
+    message: {
+      error: "TOO_MANY_AI_REQUESTS",
+      message: "Too many threat analysis requests. Please try again shortly."
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  app.post("/api/ai/analyze-threat", authMiddleware, aiLimiter, async (req, res) => {
     try {
       const { location, time, movement_pattern } = req.body;
       const ai = getAi();
