@@ -27,7 +27,11 @@ export default function Login() {
         localStorage.setItem('vshield_token', data.token);
         navigate('/dashboard');
       } else {
-        setError(data.error || 'Login failed');
+        if (data.error === 'TOO_MANY_LOGIN_ATTEMPTS') {
+          setError(data.message || 'Too many failed login attempts. Please wait 15 minutes before trying again.');
+        } else {
+          setError(data.message || data.error || 'Login failed');
+        }
       }
     } catch (err) {
       setError('An error occurred. Please try again.');

@@ -377,7 +377,7 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
     skipSuccessfulRequests: true, // Do not consume the quota on successful logins
     message: {
       error: "TOO_MANY_LOGIN_ATTEMPTS",
-      message: "Too many login attempts. Please try again later."
+      message: "Too many failed login attempts. Please wait 15 minutes before trying again."
     },
     standardHeaders: true,
     legacyHeaders: false,
