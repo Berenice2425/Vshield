@@ -396,7 +396,8 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
           res.status(401).json({ error: "Invalid credentials" });
         }
       } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        console.error("Login error:", err);
+        res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: "An unexpected server error occurred." });
       }
     } else {
       if (email && password) {
@@ -424,7 +425,8 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
         const dbVehicles = await VehicleModel.find({ user_id: (req as any).user._id });
         res.json(dbVehicles.map((v: any) => ({ id: v._id, name: v.name, plate_number: v.plate_number, status: v.status, documents: v.documents || [] })));
       } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        console.error("Fetch vehicles error:", err);
+        res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: "An unexpected server error occurred." });
       }
     } else {
       res.json(mockVehicles);
@@ -446,7 +448,8 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
       if (err.code === 11000) {
         return res.status(400).json({ error: "A vehicle with this plate number already exists." });
       }
-      res.status(500).json({ error: err.message });
+      console.error("Create vehicle error:", err);
+      res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: "An unexpected server error occurred." });
     }
   });
 
@@ -467,7 +470,8 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
       if (err.code === 11000) {
         return res.status(400).json({ error: "A vehicle with this plate number already exists." });
       }
-      res.status(500).json({ error: err.message });
+      console.error("Update vehicle error:", err);
+      res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: "An unexpected server error occurred." });
     }
   });
 
@@ -481,7 +485,8 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
       // Notice: We do not delete related alerts to preserve history
       res.json({ success: true });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      console.error("Delete vehicle error:", err);
+      res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: "An unexpected server error occurred." });
     }
   });
 
@@ -505,7 +510,8 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
           location: a.location
         })));
       } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        console.error("Fetch alerts error:", err);
+        res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: "An unexpected server error occurred." });
       }
     } else {
       res.json([
@@ -534,7 +540,8 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
       await alert.save();
       res.json({ success: true, status: alert.status });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      console.error("Update alert error:", err);
+      res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: "An unexpected server error occurred." });
     }
   });
 
@@ -555,7 +562,8 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
           immobilized,
         });
       } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        console.error("Dashboard stats error:", err);
+        res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: "An unexpected server error occurred." });
       }
     } else {
       res.json({
@@ -600,7 +608,7 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
       });
     } catch (err: any) {
       console.error("Biometrics log fetch error:", err);
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: "An unexpected server error occurred." });
     }
   });
 
@@ -635,7 +643,8 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
           if (err.code === "LIMIT_FILE_SIZE") {
             return res.status(400).json({ error: "File exceeds the maximum permitted size." });
           }
-          return res.status(400).json({ error: `File upload error: ${err.message}` });
+          console.error("File upload multer error:", err);
+          return res.status(400).json({ error: "File upload failed due to invalid format or structure." });
         }
         return res.status(400).json({ error: "File upload failed." });
       }
