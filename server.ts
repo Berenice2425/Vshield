@@ -162,7 +162,11 @@ if (AZURE_STORAGE_CONNECTION_STRING) {
 import crypto from "crypto";
 import helmet from "helmet";
 
-const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGOBD_URI;
+const MONGODB_URI = process.env.MONGODB_URI;
+
+if (!MONGODB_URI || MONGODB_URI.trim() === "") {
+  throw new Error("MONGODB_URI environment variable is required.");
+}
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET || JWT_SECRET.trim() === "") {
