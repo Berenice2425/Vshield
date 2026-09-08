@@ -14,6 +14,7 @@
         "dotenv": "^17.2.3",
         "express": "^4.21.2",
         "express-rate-limit": "^8.7.0",
+        "helmet": "^8.3.0",
         "jsonwebtoken": "^9.0.3",
         "lucide-react": "^0.546.0",
         "mongoose": "^9.9.4",
@@ -27,7 +28,6 @@
       "devDependencies": {
         "@types/bcryptjs": "^3.0.0",
         "@types/express": "^4.17.21",
-        "@types/express-rate-limit": "^6.0.2",
         "@types/multer": "^2.2.0",
         "@types/node": "^22.14.0",
         "autoprefixer": "^10.4.21",
@@ -38,6 +38,9 @@
         "vite": "^6.2.3",
       },
     },
+  },
+  "overrides": {
+    "qs": "6.16.0",
   },
   "packages": {
     "@azure/abort-controller": ["@azure/abort-controller@2.2.0", "", { "dependencies": { "tslib": "^2.6.2" } }, ""],
@@ -177,8 +180,6 @@
     "@types/estree": ["@types/estree@1.0.9", "", {}, ""],
 
     "@types/express": ["@types/express@4.17.25", "", { "dependencies": { "@types/body-parser": "*", "@types/express-serve-static-core": "^4.17.33", "@types/qs": "*", "@types/serve-static": "^1" } }, ""],
-
-    "@types/express-rate-limit": ["@types/express-rate-limit@6.0.2", "", { "dependencies": { "express-rate-limit": "*" } }, "sha512-e1xZLOOlxCDvplAGq7rDcXtbdBu2CWRsMjaIu1LVqGxWtKvwr884YE5mPs3IvHeG/OMDhf24oTaqG5T1bV3rBQ=="],
 
     "@types/express-serve-static-core": ["@types/express-serve-static-core@4.19.9", "", { "dependencies": { "@types/node": "*", "@types/qs": "*", "@types/range-parser": "*", "@types/send": "*" } }, ""],
 
@@ -354,6 +355,8 @@
 
     "hasown": ["hasown@2.0.4", "", { "dependencies": { "function-bind": "^1.1.2" } }, ""],
 
+    "helmet": ["helmet@8.3.0", "", {}, "sha512-Qgpiaws3Sm30Av8Eah6sjMCZZwjlBu+E68rhpCWBshY1lb09HtLwj5GviX0OyQIn+ulUS0iX0AxN5n3tLZzz1w=="],
+
     "http-errors": ["http-errors@2.0.1", "", { "dependencies": { "depd": "~2.0.0", "inherits": "~2.0.4", "setprototypeof": "~1.2.0", "statuses": "~2.0.2", "toidentifier": "~1.0.1" } }, ""],
 
     "http-proxy-agent": ["http-proxy-agent@7.0.2", "", { "dependencies": { "agent-base": "^7.1.0", "debug": "^4.3.4" } }, ""],
@@ -488,7 +491,7 @@
 
     "punycode": ["punycode@2.3.1", "", {}, ""],
 
-    "qs": ["qs@6.15.3", "", { "dependencies": { "es-define-property": "^1.0.1", "side-channel": "^1.1.1" } }, ""],
+    "qs": ["qs@6.16.0", "", { "dependencies": { "es-define-property": "^1.0.1", "side-channel": "^1.1.1" } }, "sha512-h6fhOIaRrID2CbEY2fqs+7t+UXZo+MLAnU5gRIq85uFtdiUPCdsApMlHhXogKVM4HM2DVbIjGNTTYH2OcmP1vA=="],
 
     "range-parser": ["range-parser@1.2.1", "", {}, ""],
 

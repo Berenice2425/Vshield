@@ -126,6 +126,8 @@ if (AZURE_STORAGE_CONNECTION_STRING) {
 // Models are now imported from the /models directory
 
 import crypto from "crypto";
+import helmet from "helmet";
+
 const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGOBD_URI;
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -138,6 +140,43 @@ if (!JWT_SECRET || JWT_SECRET.trim() === "") {
 async function startServer() {
   const app = express();
   app.set('trust proxy', 1);
+
+  // Configure Helmet security headers
+  app.use(helmet({
+    contentSecurityPolicy: process.env.NODE_ENV === "production" ? {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "blob:"],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'none'"]
+      }
+    } : false, // Disable CSP in dev to avoid breaking Vite HMR
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: false
+    },
+    frameguard: {
+      action: "deny"
+    },
+    referrerPolicy: {
+      policy: "strict-origin-when-cross-origin"
+    },
+    crossOriginResourcePolicy: { policy: "same-origin" },
+    crossOriginOpenerPolicy: { policy: "same-origin" }
+  }));
+
+  // Set Permissions-Policy manually
+  app.use((req, res, next) => {
+    res.setHeader("Permissions-Policy", "geolocation=(), camera=(), microphone=()");
+    next();
+  });
 
   if (MONGODB_URI) {
     try {
