@@ -127,9 +127,10 @@ if (AZURE_STORAGE_CONNECTION_STRING) {
 
 import crypto from "crypto";
 const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGOBD_URI;
-const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
-if (!process.env.JWT_SECRET) {
-  console.warn("JWT_SECRET is not set. A random secret will be used, but all sessions will be invalidated upon server restart.");
+
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET || JWT_SECRET.trim() === "") {
+  throw new Error("JWT_SECRET environment variable is required.");
 }
 
 
