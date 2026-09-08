@@ -312,6 +312,13 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
       if (!mongoose.Types.ObjectId.isValid(vehicle_id)) {
         return res.status(400).json({ error: "Invalid Vehicle ID." });
       }
+      if (
+        typeof location !== "string" || !location.trim() || location.length > 200 ||
+        typeof time !== "string" || !time.trim() || time.length > 100 ||
+        typeof movement_pattern !== "string" || !movement_pattern.trim() || movement_pattern.length > 500
+      ) {
+        return res.status(400).json({ error: "INVALID_INPUT", message: "Invalid threat analysis input." });
+      }
 
       if (MONGODB_URI) {
         const vehicle = await VehicleModel.findOne({ _id: vehicle_id, user_id: (req as any).user._id });
@@ -454,6 +461,10 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
   app.post("/api/auth/login", loginLimiter, async (req, res) => {
     const { email, password } = req.body;
     
+    if (typeof email !== "string" || typeof password !== "string" || !email.trim() || !password || email.length > 254 || password.length > 256) {
+      return res.status(400).json({ error: "INVALID_INPUT", message: "Invalid login request." });
+    }
+    
     if (MONGODB_URI) {
       try {
         const user = await UserModel.findOne({ email: email.toLowerCase().trim() });
@@ -516,6 +527,9 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
       if (err.code === 11000) {
         return res.status(400).json({ error: "A vehicle with this plate number already exists." });
       }
+      if (err.name === 'ValidationError' || err.name === 'CastError') {
+        return res.status(400).json({ error: "INVALID_INPUT", message: "Invalid request data." });
+      }
       console.error("Create vehicle error:", err);
       res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: "An unexpected server error occurred." });
     }
@@ -524,6 +538,9 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
   app.put("/api/vehicles/:id", authMiddleware, async (req, res) => {
     if (!MONGODB_URI) return res.status(501).json({ error: "Not implemented in mock mode" });
     try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ error: "INVALID_INPUT", message: "Invalid ID format." });
+      }
       const { name, plate_number, status } = req.body;
       const vehicle = await VehicleModel.findOne({ _id: req.params.id, user_id: (req as any).user._id });
       if (!vehicle) return res.status(404).json({ error: "Vehicle not found" });
@@ -538,6 +555,9 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
       if (err.code === 11000) {
         return res.status(400).json({ error: "A vehicle with this plate number already exists." });
       }
+      if (err.name === 'ValidationError' || err.name === 'CastError') {
+        return res.status(400).json({ error: "INVALID_INPUT", message: "Invalid request data." });
+      }
       console.error("Update vehicle error:", err);
       res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: "An unexpected server error occurred." });
     }
@@ -546,6 +566,9 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
   app.delete("/api/vehicles/:id", authMiddleware, async (req, res) => {
     if (!MONGODB_URI) return res.status(501).json({ error: "Not implemented in mock mode" });
     try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ error: "INVALID_INPUT", message: "Invalid ID format." });
+      }
       const vehicle = await VehicleModel.findOne({ _id: req.params.id, user_id: (req as any).user._id });
       if (!vehicle) return res.status(404).json({ error: "Vehicle not found" });
       
@@ -553,6 +576,9 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
       // Notice: We do not delete related alerts to preserve history
       res.json({ success: true });
     } catch (err: any) {
+      if (err.name === 'ValidationError' || err.name === 'CastError') {
+        return res.status(400).json({ error: "INVALID_INPUT", message: "Invalid request data." });
+      }
       console.error("Delete vehicle error:", err);
       res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: "An unexpected server error occurred." });
     }
@@ -578,6 +604,9 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
           location: a.location
         })));
       } catch (err: any) {
+        if (err.name === 'ValidationError' || err.name === 'CastError') {
+          return res.status(400).json({ error: "INVALID_INPUT", message: "Invalid request data." });
+        }
         console.error("Fetch alerts error:", err);
         res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: "An unexpected server error occurred." });
       }
@@ -591,6 +620,9 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
   app.put("/api/alerts/:id/status", authMiddleware, async (req, res) => {
     if (!MONGODB_URI) return res.status(501).json({ error: "Not implemented in mock mode" });
     try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ error: "INVALID_INPUT", message: "Invalid ID format." });
+      }
       const { status } = req.body;
       if (!['Active', 'Acknowledged', 'Resolved'].includes(status)) {
         return res.status(400).json({ error: "Invalid status" });
@@ -608,6 +640,9 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
       await alert.save();
       res.json({ success: true, status: alert.status });
     } catch (err: any) {
+      if (err.name === 'ValidationError' || err.name === 'CastError') {
+        return res.status(400).json({ error: "INVALID_INPUT", message: "Invalid request data." });
+      }
       console.error("Update alert error:", err);
       res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: "An unexpected server error occurred." });
     }
@@ -630,6 +665,9 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
           immobilized,
         });
       } catch (err: any) {
+        if (err.name === 'ValidationError' || err.name === 'CastError') {
+          return res.status(400).json({ error: "INVALID_INPUT", message: "Invalid request data." });
+        }
         console.error("Dashboard stats error:", err);
         res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: "An unexpected server error occurred." });
       }
@@ -675,6 +713,9 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
         azureConfigured: !!blobServiceClient
       });
     } catch (err: any) {
+      if (err.name === 'ValidationError' || err.name === 'CastError') {
+        return res.status(400).json({ error: "INVALID_INPUT", message: "Invalid request data." });
+      }
       console.error("Biometrics log fetch error:", err);
       res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: "An unexpected server error occurred." });
     }
@@ -698,7 +739,10 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
       });
 
       res.status(201).json({ status: "logged", id: log._id });
-    } catch (err) {
+    } catch (err: any) {
+      if (err.name === 'ValidationError' || err.name === 'CastError') {
+        return res.status(400).json({ error: "INVALID_INPUT", message: "Invalid request data." });
+      }
       console.error("Biometrics log save error:", err);
       res.status(500).json({ error: "Failed to save log" });
     }
@@ -725,6 +769,9 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
       }
 
       const vehicleId = req.params.id;
+      if (!mongoose.Types.ObjectId.isValid(vehicleId)) {
+        return res.status(400).json({ error: "INVALID_INPUT", message: "Invalid ID format." });
+      }
       const file = req.file;
       const { category } = req.body;
 
@@ -816,6 +863,9 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
   app.get("/api/vehicles/:id/documents/:blobId", authMiddleware, async (req, res) => {
     try {
       const vehicleId = req.params.id;
+      if (!mongoose.Types.ObjectId.isValid(vehicleId)) {
+        return res.status(400).json({ error: "INVALID_INPUT", message: "Invalid ID format." });
+      }
       const blobId = req.params.blobId;
 
       // Validate ownership
