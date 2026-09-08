@@ -1,5 +1,5 @@
-import React, { useState, useContext } from 'react';
-import { ShieldAlert, MapPin, Clock, Navigation, Loader2 } from 'lucide-react';
+import React, { useState, useContext, useEffect } from 'react';
+import { ShieldAlert, MapPin, Clock, Navigation, Loader2, Car } from 'lucide-react';
 import { AlertContext } from '../App';
 
 interface ThreatAnalysis {
@@ -9,20 +9,54 @@ interface ThreatAnalysis {
   recommendation: string;
 }
 
+interface Vehicle {
+  id: string;
+  name: string;
+  plate_number: string;
+}
+
 export default function ThreatSimulator() {
   const { refreshAlertCount } = useContext(AlertContext);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ThreatAnalysis | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
   const [location, setLocation] = useState('Lagos Mainland, High-risk zone at 2AM');
   const [time, setTime] = useState('02:15 AM');
   const [movementPattern, setMovementPattern] = useState('Erratic swerving, frequent stops near unmapped areas');
+  
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
+
+  useEffect(() => {
+    const fetchVehicles = async () => {
+      try {
+        const token = localStorage.getItem('vshield_token');
+        const res = await fetch('/api/vehicles', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setVehicles(data);
+          if (data.length > 0) {
+            setSelectedVehicleId(data[0].id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load vehicles for threat simulator", err);
+      }
+    };
+    fetchVehicles();
+  }, []);
 
   const analyzeThreat = async () => {
+    if (!selectedVehicleId) {
+      setErrorMsg("Please select a vehicle to analyze.");
+      return;
+    }
     setLoading(true);
     setResult(null);
     setErrorMsg(null);
+    
     try {
       const token = localStorage.getItem('vshield_token');
       const response = await fetch('/api/ai/analyze-threat', {
@@ -31,7 +65,7 @@ export default function ThreatSimulator() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ location, time, movement_pattern: movementPattern })
+        body: JSON.stringify({ vehicle_id: selectedVehicleId, location, time, movement_pattern: movementPattern })
       });
       
       let data;
@@ -48,6 +82,8 @@ export default function ThreatSimulator() {
           safeMessage = "Gemini is temporarily busy. Please try again in a moment.";
         } else if (data.message) {
           safeMessage = data.message;
+        } else if (data.error) {
+          safeMessage = data.error;
         }
         setErrorMsg(safeMessage);
         return;
@@ -90,6 +126,22 @@ export default function ThreatSimulator() {
       <div className="space-y-4 mb-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center space-x-1">
+            <Car className="w-4 h-4 text-emerald-500" /> <span>Target Vehicle</span>
+          </label>
+          <select 
+            value={selectedVehicleId}
+            onChange={(e) => setSelectedVehicleId(e.target.value)}
+            className="w-full p-2 border border-emerald-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+          >
+            <option value="" disabled>Select a vehicle</option>
+            {vehicles.map(v => (
+              <option key={v.id} value={v.id}>{v.name} ({v.plate_number})</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center space-x-1">
             <MapPin className="w-4 h-4 text-emerald-500" /> <span>Location Context</span>
           </label>
           <input 
@@ -128,7 +180,7 @@ export default function ThreatSimulator() {
 
       <button 
         onClick={analyzeThreat}
-        disabled={loading}
+        disabled={loading || !selectedVehicleId}
         className="w-full bg-emerald-600 text-white font-medium py-3 rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center space-x-2 disabled:bg-emerald-300"
       >
         {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShieldAlert className="w-5 h-5" />}

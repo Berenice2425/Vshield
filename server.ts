@@ -264,7 +264,22 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
 
   app.post("/api/ai/analyze-threat", authMiddleware, aiLimiter, async (req, res) => {
     try {
-      const { location, time, movement_pattern } = req.body;
+      const { vehicle_id, location, time, movement_pattern } = req.body;
+
+      if (!vehicle_id) {
+        return res.status(400).json({ error: "Vehicle ID is required." });
+      }
+      if (!mongoose.Types.ObjectId.isValid(vehicle_id)) {
+        return res.status(400).json({ error: "Invalid Vehicle ID." });
+      }
+
+      if (MONGODB_URI) {
+        const vehicle = await VehicleModel.findOne({ _id: vehicle_id, user_id: (req as any).user._id });
+        if (!vehicle) {
+          return res.status(404).json({ error: "Vehicle not found." });
+        }
+      }
+
       const ai = getAi();
       
       if (!ai) {
@@ -333,17 +348,14 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
 
       if (MONGODB_URI && normalizedResponse.riskScore >= 70) {
         try {
-          const vehicle = await VehicleModel.findOne({ user_id: (req as any).user._id });
-          if (vehicle) {
-            await AlertModel.create({
-              vehicle_id: vehicle._id,
-              type: "Threat Detected",
-              severity: normalizedResponse.riskScore >= 90 ? "Critical" : "High",
-              message: normalizedResponse.reasoning,
-              status: "Active",
-              location: { address: location },
-            });
-          }
+          await AlertModel.create({
+            vehicle_id: vehicle_id,
+            type: "Threat Detected",
+            severity: normalizedResponse.riskScore >= 90 ? "Critical" : "High",
+            message: normalizedResponse.reasoning,
+            status: "Active",
+            location: { address: location },
+          });
         } catch (dbErr) {
           console.error("Failed to create alert from threat analysis:", dbErr);
         }
