@@ -105,7 +105,7 @@ export default function ThreatSimulator() {
         recommendation
       });
 
-      if (riskScore >= 70) {
+      if (riskScore >= 70 && data.alertCreated) {
         await refreshAlertCount();
       }
     } catch (error) {

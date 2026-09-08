@@ -346,22 +346,38 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
         recommendation: parsedResponse?.recommendation || "No recommendation provided."
       };
 
+      let alertCreated = false;
       if (MONGODB_URI && normalizedResponse.riskScore >= 70) {
         try {
-          await AlertModel.create({
+          const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+          const existingAlert = await AlertModel.findOne({
             vehicle_id: vehicle_id,
-            type: "Threat Detected",
-            severity: normalizedResponse.riskScore >= 90 ? "Critical" : "High",
-            message: normalizedResponse.reasoning,
             status: "Active",
-            location: { address: location },
+            type: "Threat Detected",
+            "location.address": location,
+            timestamp: { $gte: tenMinutesAgo }
           });
+
+          if (!existingAlert) {
+            await AlertModel.create({
+              vehicle_id: vehicle_id,
+              type: "Threat Detected",
+              severity: normalizedResponse.riskScore >= 90 ? "Critical" : "High",
+              message: normalizedResponse.reasoning,
+              status: "Active",
+              location: { address: location },
+            });
+            alertCreated = true;
+          }
         } catch (dbErr) {
           console.error("Failed to create alert from threat analysis:", dbErr);
         }
       }
 
-      res.json(normalizedResponse);
+      res.json({
+        ...normalizedResponse,
+        alertCreated
+      });
     } catch (error: any) {
       console.error("Threat analysis error:", error?.message || error);
       if (isTransientGeminiError(error)) {
