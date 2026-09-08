@@ -108,6 +108,40 @@ function normalizeMimeType(mimetype: string, originalname: string): string {
   return mime;
 }
 
+function isFileSignatureValid(buffer: Buffer, mimeType: string): boolean {
+  if (!buffer || buffer.length === 0) return false;
+
+  if (mimeType === "image/jpeg") {
+    if (buffer.length < 3) return false;
+    return buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF;
+  }
+  
+  if (mimeType === "image/png") {
+    if (buffer.length < 8) return false;
+    return buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47 &&
+           buffer[4] === 0x0D && buffer[5] === 0x0A && buffer[6] === 0x1A && buffer[7] === 0x0A;
+  }
+  
+  if (mimeType === "image/webp") {
+    if (buffer.length < 12) return false;
+    const riff = buffer.toString('ascii', 0, 4);
+    const webp = buffer.toString('ascii', 8, 12);
+    return riff === 'RIFF' && webp === 'WEBP';
+  }
+  
+  if (mimeType === "application/pdf") {
+    if (buffer.length < 5) return false;
+    return buffer.toString('ascii', 0, 5) === '%PDF-';
+  }
+  
+  if (mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+    if (buffer.length < 4) return false;
+    return buffer[0] === 0x50 && buffer[1] === 0x4B && buffer[2] === 0x03 && buffer[3] === 0x04;
+  }
+
+  return false;
+}
+
 const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING;
 const AZURE_STORAGE_CONTAINER_NAME = process.env.AZURE_STORAGE_CONTAINER_NAME || "vshield";
 
@@ -825,6 +859,14 @@ const authMiddleware = async (req: express.Request, res: express.Response, next:
       // Enforce file size restriction
       if (file.size > MAX_DOCUMENT_FILE_SIZE) {
         return res.status(400).json({ error: "File exceeds the maximum permitted size." });
+      }
+
+      // NEW: Validate file signature against normalized MIME
+      if (!isFileSignatureValid(file.buffer, normalizedMime)) {
+        return res.status(400).json({
+          error: "INVALID_FILE_CONTENT",
+          message: "Uploaded file content does not match the declared file type."
+        });
       }
 
       const containerClient = blobServiceClient.getContainerClient(AZURE_STORAGE_CONTAINER_NAME);
